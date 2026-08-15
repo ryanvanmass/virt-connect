@@ -74,6 +74,47 @@ QPushButton#primaryBtn:hover { background: #f0ae4b; }
 
 QPushButton#rowBtn { padding: 5px 12px; }
 
+QToolButton#rowBtn {
+    background: #1d2430;
+    border: 1px solid #2a3341;
+    border-radius: 6px;
+    color: #d9dee5;
+    padding: 5px 10px;
+    padding-right: 28px;
+    min-width: 74px;
+    min-height: 22px;
+    font-size: 12.5px;
+}
+QToolButton#rowBtn:hover { background: #212a37; border-color: #8a672a; }
+QToolButton#rowBtn:disabled { color: #55606e; }
+QToolButton#rowBtn::menu-button {
+    subcontrol-origin: border;
+    subcontrol-position: right;
+    border-left: 1px solid #2a3341;
+    width: 24px;
+}
+QToolButton#rowBtn::menu-arrow {
+    width: 10px;
+    height: 10px;
+}
+
+QMenu {
+    background: #171d26;
+    border: 1px solid #2a3341;
+    border-radius: 8px;
+    padding: 4px;
+    color: #d9dee5;
+    font-size: 12.5px;
+}
+QMenu::item {
+    padding: 7px 12px;
+    border-radius: 5px;
+}
+QMenu::item:selected {
+    background: #212a37;
+    color: #e8a33d;
+}
+
 QPushButton#iconBtn, QPushButton#dangerBtn {
     background: transparent;
     border: none;
@@ -220,10 +261,10 @@ class MainWindow(QMainWindow):
 
     # -- connecting -------------------------------------------------------------
 
-    def on_connect_requested(self, uri, vm_name):
+    def on_connect_requested(self, uri, vm_name, use_x11):
         for card in self.cards.values():
             card.set_row_busy(vm_name, True)
-        worker = ConnectWorker(uri, vm_name)
+        worker = ConnectWorker(uri, vm_name, use_x11=use_x11)
         worker.finished_ok.connect(lambda: self._on_connect_done(vm_name, None))
         worker.failed.connect(lambda err: self._on_connect_done(vm_name, err))
         self._connect_workers.append(worker)

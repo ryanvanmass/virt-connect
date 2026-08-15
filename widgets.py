@@ -7,7 +7,9 @@ from PyQt6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMenu,
     QPushButton,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
@@ -29,7 +31,7 @@ class Led(QLabel):
 
 
 class VmRow(QWidget):
-    connect_requested = pyqtSignal(str, str)  # uri, vm name
+    connect_requested = pyqtSignal(str, str, bool)  # uri, vm name, use_x11_backend
 
     def __init__(self, uri: str, vm: dict):
         super().__init__()
@@ -52,11 +54,23 @@ class VmRow(QWidget):
         state_label.setFixedWidth(90)
         layout.addWidget(state_label)
 
-        self.connect_btn = QPushButton("Connect")
+        self.connect_btn = QToolButton()
         self.connect_btn.setObjectName("rowBtn")
+        self.connect_btn.setText("Connect")
+        self.connect_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.connect_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
         self.connect_btn.clicked.connect(
-            lambda: self.connect_requested.emit(self._uri, self._vm_name)
+            lambda: self.connect_requested.emit(self._uri, self._vm_name, False)
         )
+
+        menu = QMenu(self.connect_btn)
+        legacy_action = menu.addAction("Connect (X11 legacy mode)")
+        legacy_action.setToolTip("Runs with GDK_BACKEND=x11 for older/legacy systems")
+        legacy_action.triggered.connect(
+            lambda: self.connect_requested.emit(self._uri, self._vm_name, True)
+        )
+        self.connect_btn.setMenu(menu)
+
         layout.addWidget(self.connect_btn)
 
     def set_busy(self, busy: bool):
@@ -65,7 +79,7 @@ class VmRow(QWidget):
 
 
 class HostCard(QFrame):
-    connect_requested = pyqtSignal(str, str)  # uri, vm name
+    connect_requested = pyqtSignal(str, str, bool)  # uri, vm name, use_x11_backend
     refresh_requested = pyqtSignal(str)  # host name
     delete_requested = pyqtSignal(str)  # host name
 

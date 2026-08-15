@@ -33,62 +33,66 @@ python3 main.py
 - Each host card lists its VMs with a running/off indicator, refreshed
   every 15s in the background (won't freeze the window — virsh calls run
   on a worker thread).
-- Click **Connect** next to any VM to launch `virt-viewer` for it.
+- Click **Connect** next to any VM to launch `virt-viewer` for it. The
+  small arrow next to the button opens a menu with **Connect (X11 legacy
+  mode)**, which runs the same command with `GDK_BACKEND=x11` set — useful
+  if `virt-viewer` misbehaves under Wayland on older/legacy systems.
 
 Hosts are stored in `~/.config/virt-connect/hosts.json`.
 
 ## Optional: launcher / desktop entry
 
-To get this in your app launcher, install it under your XDG user
-directories rather than pointing the `.desktop` file at wherever you
-happened to unzip it — that way it survives you moving or deleting the
-original folder, and the icon resolves through the icon theme instead of
-a hardcoded path.
+Run the included installer to install the app under the standard XDG
+user locations, register the icon, and create a launcher entry:
 
-1. **Install the app itself** to `~/.local/share/virt-connect`:
+```
+./install.sh
+```
 
-   ```
-   mkdir -p ~/.local/share/virt-connect
-   cp -r main.py config.py virsh_client.py workers.py widgets.py assets \
-       ~/.local/share/virt-connect/
-   ```
+It's safe to re-run any time (e.g. after pulling an update) — it just
+overwrites the installed copy. It does three things, matching XDG
+conventions rather than pointing anything at wherever you unzipped the
+project:
 
-2. **Install the icon** into the hicolor icon theme, one size per
-   directory, named after the app (no `.svg`/`.png` variant suffixes):
+1. Copies the app to `~/.local/share/virt-connect`, so it survives you
+   moving or deleting the original folder.
+2. Installs each icon size into `~/.local/share/icons/hicolor/<size>/apps/`
+   so `Icon=virt-connect` resolves through the icon theme (panel,
+   launcher grid, alt-tab all pick whichever size fits) instead of one
+   fixed PNG at a hardcoded path.
+3. Writes `~/.local/share/applications/virt-connect.desktop` pointing at
+   the installed copy, and refreshes the desktop database.
 
-   ```
-   for size in 16 24 32 48 64 128 256; do
-     dir=~/.local/share/icons/hicolor/${size}x${size}/apps
-     mkdir -p "$dir"
-     cp ~/.local/share/virt-connect/assets/icon-${size}.png "$dir/virt-connect.png"
-   done
-   gtk-update-icon-cache ~/.local/share/icons/hicolor 2>/dev/null || true
-   ```
+`virt-connect` should then appear in your app launcher with its icon.
+Run `./install.sh --uninstall` to remove everything it installed.
 
-3. **Add the desktop entry** at
-   `~/.local/share/applications/virt-connect.desktop`:
+<details>
+<summary>Doing it by hand instead</summary>
 
-   ```ini
-   [Desktop Entry]
-   Type=Application
-   Name=virt-connect
-   Comment=libvirt console launcher
-   Exec=python3 %h/.local/share/virt-connect/main.py
-   Icon=virt-connect
-   Terminal=false
-   Categories=System;Network;
-   ```
+```
+mkdir -p ~/.local/share/virt-connect
+cp -r main.py config.py virsh_client.py workers.py widgets.py assets \
+    ~/.local/share/virt-connect/
 
-   `Icon=virt-connect` (just the name, no path) lets the desktop
-   environment pick whichever installed size fits — panel, launcher grid,
-   alt-tab, etc. — instead of scaling one fixed PNG.
+for size in 16 24 32 48 64 128 256; do
+  dir=~/.local/share/icons/hicolor/${size}x${size}/apps
+  mkdir -p "$dir"
+  cp ~/.local/share/virt-connect/assets/icon-${size}.png "$dir/virt-connect.png"
+done
+gtk-update-icon-cache ~/.local/share/icons/hicolor 2>/dev/null || true
 
-4. Refresh the desktop database so the entry shows up immediately:
+cat > ~/.local/share/applications/virt-connect.desktop <<EOF
+[Desktop Entry]
+Type=Application
+Name=virt-connect
+Comment=libvirt console launcher
+Exec=python3 $HOME/.local/share/virt-connect/main.py
+Icon=virt-connect
+Terminal=false
+Categories=System;Network;
+EOF
 
-   ```
-   update-desktop-database ~/.local/share/applications
-   ```
+update-desktop-database ~/.local/share/applications
+```
 
-After this, `virt-connect` should appear in your app launcher with its
-own icon. To update the app later, just re-run step 1 to overwrite the
-installed copy.
+</details>

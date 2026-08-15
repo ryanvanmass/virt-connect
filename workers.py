@@ -26,14 +26,15 @@ class ConnectWorker(QThread):
     finished_ok = pyqtSignal()
     failed = pyqtSignal(str)
 
-    def __init__(self, uri, vm, parent=None):
+    def __init__(self, uri, vm, use_x11=False, parent=None):
         super().__init__(parent)
         self._uri = uri
         self._vm = vm
+        self._use_x11 = use_x11
 
     def run(self):
         try:
-            virsh_client.connect(self._uri, self._vm)
+            virsh_client.connect(self._uri, self._vm, use_x11=self._use_x11)
             self.finished_ok.emit()
         except FileNotFoundError:
             self.failed.emit("virt-viewer is not installed or not on PATH")
