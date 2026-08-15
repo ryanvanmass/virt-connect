@@ -1,0 +1,34 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="glow" cx="28%" cy="18%" r="75%">
+      <stop offset="0%" stop-color="#e8a33d" stop-opacity="0.16"/>
+      <stop offset="55%" stop-color="#e8a33d" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#171d26"/>
+      <stop offset="100%" stop-color="#10141a"/>
+    </linearGradient>
+    <filter id="ledGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect x="4" y="4" width="248" height="248" rx="54" fill="url(#bg)" stroke="#2a3341" stroke-width="4"/>
+  <rect x="4" y="4" width="248" height="248" rx="54" fill="url(#glow)"/>
+
+  <!-- prompt chevron ">" -->
+  <path d="M 84 72 L 150 128 L 84 184"
+        fill="none" stroke="#e8a33d" stroke-width="22"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- underscore -->
+  <rect x="160" y="170" width="52" height="20" rx="10" fill="#e8a33d"/>
+
+  <!-- status LED, echoing the "running" indicator in the app UI -->
+  <circle cx="204" cy="60" r="13" fill="#5fd97a" filter="url(#ledGlow)"/>
+</svg>
