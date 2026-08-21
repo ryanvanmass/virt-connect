@@ -33,10 +33,16 @@ python3 main.py
 - Each host card lists its VMs with a running/off indicator, refreshed
   every 15s in the background (won't freeze the window — virsh calls run
   on a worker thread).
-- Click **Connect** next to any VM to launch `virt-viewer` for it. The
-  small arrow next to the button opens a menu with **Connect (X11 legacy
-  mode)**, which runs the same command with `GDK_BACKEND=x11` set — useful
-  if `virt-viewer` misbehaves under Wayland on older/legacy systems.
+- Each VM has two split buttons:
+  - **Power control** — defaults to **Pause** for a running VM, or **Start**
+    for a paused or shut-off one (resuming vs. booting under the hood,
+    respectively). The dropdown arrow adds **Shutdown** as a secondary
+    option (a graceful ACPI shutdown via `virsh shutdown`).
+  - **Connect** — launches `virt-viewer`. The dropdown adds **Connect (X11
+    legacy mode)**, which runs the same command with `GDK_BACKEND=x11` set —
+    useful if `virt-viewer` misbehaves under Wayland on older/legacy systems.
+- The list refreshes automatically after any power action so the state and
+  button label catch up, in addition to the normal 15s background refresh.
 
 Hosts are stored in `~/.config/virt-connect/hosts.json`.
 

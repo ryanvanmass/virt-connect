@@ -32,6 +32,7 @@ class Led(QLabel):
 
 class VmRow(QWidget):
     connect_requested = pyqtSignal(str, str, bool)  # uri, vm name, use_x11_backend
+    power_requested = pyqtSignal(str, str, str)  # uri, vm name, action
 
     def __init__(self, uri: str, vm: dict):
         super().__init__()
@@ -42,7 +43,8 @@ class VmRow(QWidget):
         layout.setContentsMargins(18, 8, 14, 8)
         layout.setSpacing(12)
 
-        running = vm["state"].lower() == "running"
+        state_lower = vm["state"].lower()
+        running = state_lower == "running"
         layout.addWidget(Led(running))
 
         name_label = QLabel(vm["name"])
@@ -53,6 +55,35 @@ class VmRow(QWidget):
         state_label.setStyleSheet(f"font-family:{MONO}; font-size:11.5px; color:#7d8a9a;")
         state_label.setFixedWidth(90)
         layout.addWidget(state_label)
+
+        # Power control: default action depends on current state. Running
+        # VMs default to Pause; paused or shut-off VMs default to Start
+        # (resuming vs. booting under the hood, respectively). Shutdown is
+        # always available as a secondary option via the dropdown.
+        if state_lower == "running":
+            self._power_label, self._power_action = "Pause", "pause"
+        elif state_lower == "paused":
+            self._power_label, self._power_action = "Start", "resume"
+        else:
+            self._power_label, self._power_action = "Start", "start"
+
+        self.power_btn = QToolButton()
+        self.power_btn.setObjectName("rowBtn")
+        self.power_btn.setText(self._power_label)
+        self.power_btn.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.power_btn.setPopupMode(QToolButton.ToolButtonPopupMode.MenuButtonPopup)
+        self.power_btn.clicked.connect(
+            lambda: self.power_requested.emit(self._uri, self._vm_name, self._power_action)
+        )
+
+        power_menu = QMenu(self.power_btn)
+        shutdown_action = power_menu.addAction("Shutdown")
+        shutdown_action.setToolTip("Graceful ACPI shutdown (virsh shutdown)")
+        shutdown_action.triggered.connect(
+            lambda: self.power_requested.emit(self._uri, self._vm_name, "shutdown")
+        )
+        self.power_btn.setMenu(power_menu)
+        layout.addWidget(self.power_btn)
 
         self.connect_btn = QToolButton()
         self.connect_btn.setObjectName("rowBtn")
@@ -76,10 +107,13 @@ class VmRow(QWidget):
     def set_busy(self, busy: bool):
         self.connect_btn.setEnabled(not busy)
         self.connect_btn.setText("Launching…" if busy else "Connect")
+        self.power_btn.setEnabled(not busy)
+        self.power_btn.setText("Working…" if busy else self._power_label)
 
 
 class HostCard(QFrame):
     connect_requested = pyqtSignal(str, str, bool)  # uri, vm name, use_x11_backend
+    power_requested = pyqtSignal(str, str, str)  # uri, vm name, action
     refresh_requested = pyqtSignal(str)  # host name
     delete_requested = pyqtSignal(str)  # host name
 
@@ -151,6 +185,7 @@ class HostCard(QFrame):
         for vm in vms:
             row = VmRow(self._uri_for_rows, vm)
             row.connect_requested.connect(self.connect_requested)
+            row.power_requested.connect(self.power_requested)
             self.body.addWidget(row)
             self._rows[vm["name"]] = row
 

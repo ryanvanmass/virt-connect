@@ -51,3 +51,37 @@ def connect(uri, vm, use_x11=False):
         stderr=subprocess.DEVNULL,
         env=env,
     )
+
+
+# Maps the action names used in the UI to the virsh subcommand that
+# implements them. "pause" suspends a running VM; "resume" un-pauses one;
+# "start" boots a shut-off VM; "shutdown" requests a graceful ACPI shutdown.
+POWER_COMMANDS = {
+    "pause": "suspend",
+    "resume": "resume",
+    "start": "start",
+    "shutdown": "shutdown",
+}
+
+
+def power_action(uri, vm, action):
+    """Run a virsh power-control subcommand. Returns (ok, error)."""
+    cmd = POWER_COMMANDS.get(action)
+    if cmd is None:
+        return False, f"unknown power action: {action}"
+
+    try:
+        proc = subprocess.run(
+            ["virsh", "-c", uri, cmd, vm],
+            capture_output=True,
+            text=True,
+            timeout=VIRSH_TIMEOUT,
+        )
+    except FileNotFoundError:
+        return False, "virsh is not installed or not on PATH"
+    except subprocess.TimeoutExpired:
+        return False, "timed out reaching host"
+
+    if proc.returncode != 0:
+        return False, (proc.stderr or f"virsh {cmd} failed").strip()
+    return True, None

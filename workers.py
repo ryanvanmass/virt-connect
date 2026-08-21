@@ -40,3 +40,23 @@ class ConnectWorker(QThread):
             self.failed.emit("virt-viewer is not installed or not on PATH")
         except Exception as e:  # noqa: BLE001 — surface any launch failure to the UI
             self.failed.emit(str(e))
+
+
+class PowerWorker(QThread):
+    """Runs a virsh power-control action (pause/resume/start/shutdown) off the UI thread."""
+
+    finished_ok = pyqtSignal()
+    failed = pyqtSignal(str)
+
+    def __init__(self, uri, vm, action, parent=None):
+        super().__init__(parent)
+        self._uri = uri
+        self._vm = vm
+        self._action = action
+
+    def run(self):
+        ok, error = virsh_client.power_action(self._uri, self._vm, self._action)
+        if ok:
+            self.finished_ok.emit()
+        else:
+            self.failed.emit(error)

@@ -21,7 +21,7 @@ from PyQt6.QtWidgets import (
 
 import config
 from widgets import AddHostDialog, HostCard
-from workers import ConnectWorker, RefreshWorker
+from workers import ConnectWorker, PowerWorker, RefreshWorker
 
 REFRESH_INTERVAL_MS = 15_000
 ICON_PATH = Path(__file__).parent / "assets" / "icon-256.png"
@@ -147,6 +147,7 @@ class MainWindow(QMainWindow):
         self.cards = {}  # host name -> HostCard
         self._refresh_worker = None
         self._connect_workers = []  # keep references so they aren't GC'd mid-run
+        self._power_workers = []  # keep references so they aren't GC'd mid-run
 
         central = QWidget()
         central.setObjectName("central")
@@ -208,6 +209,7 @@ class MainWindow(QMainWindow):
         for h in self.hosts:
             card = HostCard(h["name"], h["uri"])
             card.connect_requested.connect(self.on_connect_requested)
+            card.power_requested.connect(self.on_power_requested)
             card.refresh_requested.connect(lambda name: self.refresh())
             card.delete_requested.connect(self.on_delete_host)
             self.list_layout.addWidget(card)
@@ -278,6 +280,27 @@ class MainWindow(QMainWindow):
         else:
             self.status.showMessage(f"Launched virt-viewer for {vm_name}", 4000)
         self._connect_workers = [w for w in self._connect_workers if w.isRunning()]
+
+    # -- power control ------------------------------------------------------------
+
+    def on_power_requested(self, uri, vm_name, action):
+        for card in self.cards.values():
+            card.set_row_busy(vm_name, True)
+        worker = PowerWorker(uri, vm_name, action)
+        worker.finished_ok.connect(lambda: self._on_power_done(vm_name, action, None))
+        worker.failed.connect(lambda err: self._on_power_done(vm_name, action, err))
+        self._power_workers.append(worker)
+        worker.start()
+
+    def _on_power_done(self, vm_name, action, error):
+        for card in self.cards.values():
+            card.set_row_busy(vm_name, False)
+        if error:
+            QMessageBox.critical(self, "virt-connect", error)
+        else:
+            self.status.showMessage(f"{action} sent to {vm_name}", 4000)
+        self._power_workers = [w for w in self._power_workers if w.isRunning()]
+        self.refresh()  # pick up the resulting state change
 
 
 def main():
