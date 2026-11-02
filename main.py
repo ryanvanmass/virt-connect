@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""virt-connect (Qt): a native desktop launcher for virt-viewer sessions
-against one or more libvirt hosts, with VM lists auto-discovered via virsh.
+"""virt-connect (Qt): a native desktop launcher for VM consoles on one or
+more hosts. libvirt hosts are driven through virsh/virt-viewer; Proxmox VE
+hosts through the Proxmox REST API and SPICE (remote-viewer).
 """
 import sys
 from pathlib import Path
@@ -19,6 +20,7 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+import backends
 import config
 from widgets import AddHostDialog, HostCard
 from workers import ConnectWorker, PowerWorker, RefreshWorker
@@ -164,7 +166,7 @@ class MainWindow(QMainWindow):
         brand_box = QVBoxLayout()
         brand = QLabel("> virt-connect")
         brand.setObjectName("brand")
-        sub = QLabel("libvirt console launcher")
+        sub = QLabel("libvirt / Proxmox console launcher")
         sub.setObjectName("brandSub")
         brand_box.addWidget(brand)
         brand_box.addWidget(sub)
@@ -207,7 +209,8 @@ class MainWindow(QMainWindow):
         self.cards.clear()
 
         for h in self.hosts:
-            card = HostCard(h["name"], h["uri"])
+            badge = "proxmox" if backends.host_type(h) == backends.PROXMOX else ""
+            card = HostCard(h["name"], backends.describe(h), badge)
             card.connect_requested.connect(self.on_connect_requested)
             card.power_requested.connect(self.on_power_requested)
             card.refresh_requested.connect(lambda name: self.refresh())
@@ -219,14 +222,14 @@ class MainWindow(QMainWindow):
     def on_add_host(self):
         dlg = AddHostDialog(self)
         if dlg.exec():
-            name, uri = dlg.values()
-            if not name or not uri:
-                QMessageBox.warning(self, "virt-connect", "Name and URI are both required.")
+            host, error = dlg.host_entry()
+            if error:
+                QMessageBox.warning(self, "virt-connect", error)
                 return
-            if any(h["name"] == name for h in self.hosts):
+            if any(h["name"] == host["name"] for h in self.hosts):
                 QMessageBox.warning(self, "virt-connect", "A host with that name already exists.")
                 return
-            self.hosts.append({"name": name, "uri": uri})
+            self.hosts.append(host)
             config.save_hosts(self.hosts)
             self.rebuild_cards()
             self.refresh()
@@ -261,44 +264,56 @@ class MainWindow(QMainWindow):
                 card.set_content(r["vms"], r["error"])
         self.status.showMessage("Up to date", 4000)
 
+    def _host(self, name):
+        return next((h for h in self.hosts if h["name"] == name), None)
+
+    def _set_busy(self, host_name, vm_id, busy):
+        card = self.cards.get(host_name)
+        if card:
+            card.set_row_busy(vm_id, busy)
+
     # -- connecting -------------------------------------------------------------
 
-    def on_connect_requested(self, uri, vm_name, use_x11):
-        for card in self.cards.values():
-            card.set_row_busy(vm_name, True)
-        worker = ConnectWorker(uri, vm_name, use_x11=use_x11)
-        worker.finished_ok.connect(lambda: self._on_connect_done(vm_name, None))
-        worker.failed.connect(lambda err: self._on_connect_done(vm_name, err))
+    def on_connect_requested(self, host_name, vm_id, use_x11):
+        host = self._host(host_name)
+        if host is None:
+            return
+        self._set_busy(host_name, vm_id, True)
+        worker = ConnectWorker(host, vm_id, use_x11=use_x11)
+        worker.finished_ok.connect(lambda: self._on_connect_done(host, vm_id, None))
+        worker.failed.connect(lambda err: self._on_connect_done(host, vm_id, err))
         self._connect_workers.append(worker)
         worker.start()
 
-    def _on_connect_done(self, vm_name, error):
-        for card in self.cards.values():
-            card.set_row_busy(vm_name, False)
+    def _on_connect_done(self, host, vm_id, error):
+        self._set_busy(host["name"], vm_id, False)
         if error:
             QMessageBox.critical(self, "virt-connect", error)
         else:
-            self.status.showMessage(f"Launched virt-viewer for {vm_name}", 4000)
+            self.status.showMessage(
+                f"Launched {backends.viewer_name(host)} for {vm_id}", 4000
+            )
         self._connect_workers = [w for w in self._connect_workers if w.isRunning()]
 
     # -- power control ------------------------------------------------------------
 
-    def on_power_requested(self, uri, vm_name, action):
-        for card in self.cards.values():
-            card.set_row_busy(vm_name, True)
-        worker = PowerWorker(uri, vm_name, action)
-        worker.finished_ok.connect(lambda: self._on_power_done(vm_name, action, None))
-        worker.failed.connect(lambda err: self._on_power_done(vm_name, action, err))
+    def on_power_requested(self, host_name, vm_id, action):
+        host = self._host(host_name)
+        if host is None:
+            return
+        self._set_busy(host_name, vm_id, True)
+        worker = PowerWorker(host, vm_id, action)
+        worker.finished_ok.connect(lambda: self._on_power_done(host_name, vm_id, action, None))
+        worker.failed.connect(lambda err: self._on_power_done(host_name, vm_id, action, err))
         self._power_workers.append(worker)
         worker.start()
 
-    def _on_power_done(self, vm_name, action, error):
-        for card in self.cards.values():
-            card.set_row_busy(vm_name, False)
+    def _on_power_done(self, host_name, vm_id, action, error):
+        self._set_busy(host_name, vm_id, False)
         if error:
             QMessageBox.critical(self, "virt-connect", error)
         else:
-            self.status.showMessage(f"{action} sent to {vm_name}", 4000)
+            self.status.showMessage(f"{action} sent to {vm_id}", 4000)
         self._power_workers = [w for w in self._power_workers if w.isRunning()]
         self.refresh()  # pick up the resulting state change
 
