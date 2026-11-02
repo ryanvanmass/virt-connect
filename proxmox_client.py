@@ -22,11 +22,12 @@ console.
 import json
 import os
 import ssl
-import subprocess
 import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
+
+import viewer
 
 API_TIMEOUT = 8  # seconds — same budget as virsh, keeps a dead host from hanging a refresh
 
@@ -188,23 +189,20 @@ def write_vv_file(cfg):
 
 
 def connect(host, vm_id, use_x11=False):
-    """Fetch a SPICE ticket and open it in remote-viewer.
+    """Fetch a SPICE ticket and open it in remote-viewer (Saffron on macOS).
 
-    Raises FileNotFoundError if remote-viewer is missing, ProxmoxError for API
-    failures.
+    Raises viewer.ViewerNotFound (a FileNotFoundError) if the viewer is
+    missing, ProxmoxError for API failures.
     """
+    # Resolve the viewer before asking for a ticket, so a missing viewer
+    # doesn't burn one (and leave a .vv with a live ticket on disk).
+    exe = viewer.vv_viewer()
     path = write_vv_file(spice_config(host, vm_id))
-    env = None
-    if use_x11:
-        env = os.environ.copy()
-        env["GDK_BACKEND"] = "x11"
-    # remote-viewer ships in the virt-viewer package. Proxmox's config sets
-    # delete-this-file=1, so remote-viewer removes the .vv after reading it;
-    # the ticket inside expires after ~30s regardless.
-    subprocess.Popen(
-        ["remote-viewer", path],
-        start_new_session=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        env=env,
-    )
+    # Proxmox's config sets delete-this-file=1, so the viewer removes the
+    # .vv after reading it (remote-viewer and Saffron both honour it); the
+    # ticket inside expires after ~30s regardless.
+    try:
+        viewer.launch([exe, path], use_x11=use_x11)
+    except FileNotFoundError:
+        os.unlink(path)
+        raise

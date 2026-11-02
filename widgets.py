@@ -17,6 +17,8 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+import viewer
+
 MONO = "'JetBrains Mono', 'DejaVu Sans Mono', monospace"
 
 
@@ -97,13 +99,19 @@ class VmRow(QWidget):
             lambda: self.connect_requested.emit(self._host, self._vm_id, False)
         )
 
-        menu = QMenu(self.connect_btn)
-        legacy_action = menu.addAction("Connect (X11 legacy mode)")
-        legacy_action.setToolTip("Runs with GDK_BACKEND=x11 for older/legacy systems")
-        legacy_action.triggered.connect(
-            lambda: self.connect_requested.emit(self._host, self._vm_id, True)
-        )
-        self.connect_btn.setMenu(menu)
+        # X11 legacy mode only means something for the GTK virt-viewer
+        # tools; on macOS the Connect button opens Saffron, so it's a plain
+        # button there.
+        if not viewer.uses_saffron():
+            menu = QMenu(self.connect_btn)
+            legacy_action = menu.addAction("Connect (X11 legacy mode)")
+            legacy_action.setToolTip("Runs with GDK_BACKEND=x11 for older/legacy systems")
+            legacy_action.triggered.connect(
+                lambda: self.connect_requested.emit(self._host, self._vm_id, True)
+            )
+            self.connect_btn.setMenu(menu)
+        else:
+            self.connect_btn.setPopupMode(QToolButton.ToolButtonPopupMode.DelayedPopup)
 
         layout.addWidget(self.connect_btn)
 

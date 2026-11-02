@@ -1,6 +1,7 @@
 from PyQt6.QtCore import QThread, pyqtSignal
 
 import backends
+import viewer
 
 
 class RefreshWorker(QThread):
@@ -43,6 +44,8 @@ class ConnectWorker(QThread):
         try:
             backends.connect(self._host, self._vm_id, use_x11=self._use_x11)
             self.finished_ok.emit()
+        except viewer.ViewerNotFound as e:
+            self.failed.emit(str(e))
         except FileNotFoundError:
             self.failed.emit(f"{backends.viewer_name(self._host)} is not installed or not on PATH")
         except Exception as e:  # noqa: BLE001 — surface any launch failure to the UI
