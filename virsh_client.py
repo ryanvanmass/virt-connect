@@ -1,7 +1,8 @@
 """Thin wrappers around the virsh and virt-viewer command-line tools."""
-import os
 import re
 import subprocess
+
+import viewer
 
 VIRSH_TIMEOUT = 8  # seconds — keeps a dead remote host from hanging the UI
 
@@ -34,23 +35,13 @@ def list_vms(uri):
 
 
 def connect(uri, vm, use_x11=False):
-    """Launch virt-viewer for the given VM. Raises FileNotFoundError if missing.
+    """Open the VM's console: virt-viewer, or Saffron on macOS (see viewer.py).
+    Raises viewer.ViewerNotFound (a FileNotFoundError) if it isn't installed.
 
     If use_x11 is True, runs with GDK_BACKEND=x11 set — useful for legacy
     systems where virt-viewer's default (often Wayland) backend misbehaves.
     """
-    env = None
-    if use_x11:
-        env = os.environ.copy()
-        env["GDK_BACKEND"] = "x11"
-
-    subprocess.Popen(
-        ["virt-viewer", "--connect", uri, "--wait", vm],
-        start_new_session=True,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        env=env,
-    )
+    viewer.launch(viewer.libvirt_command(uri, vm), use_x11=use_x11)
 
 
 # Maps the action names used in the UI to the virsh subcommand that

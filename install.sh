@@ -33,7 +33,7 @@ if [[ "${1:-}" == "--uninstall" ]]; then
   exit 0
 fi
 
-for f in main.py config.py backends.py virsh_client.py proxmox_client.py workers.py widgets.py; do
+for f in main.py config.py backends.py virsh_client.py proxmox_client.py viewer.py workers.py widgets.py; do
   if [[ ! -f "$SCRIPT_DIR/$f" ]]; then
     echo "error: expected $f next to install.sh, but it's missing." >&2
     exit 1
@@ -47,7 +47,7 @@ fi
 echo "Installing app files to $APP_DIR..."
 mkdir -p "$APP_DIR"
 cp -r "$SCRIPT_DIR"/main.py "$SCRIPT_DIR"/config.py "$SCRIPT_DIR"/backends.py \
-      "$SCRIPT_DIR"/virsh_client.py "$SCRIPT_DIR"/proxmox_client.py \
+      "$SCRIPT_DIR"/virsh_client.py "$SCRIPT_DIR"/proxmox_client.py "$SCRIPT_DIR"/viewer.py \
       "$SCRIPT_DIR"/workers.py "$SCRIPT_DIR"/widgets.py "$SCRIPT_DIR"/assets \
       "$APP_DIR/"
 

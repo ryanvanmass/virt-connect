@@ -10,6 +10,7 @@ Hosts without a "type" are libvirt hosts, so hosts.json files written by
 earlier versions keep working unchanged.
 """
 import proxmox_client
+import viewer
 import virsh_client
 
 LIBVIRT = "libvirt"
@@ -50,4 +51,4 @@ def connect(host, vm_id, use_x11=False):
 
 
 def viewer_name(host):
-    return "remote-viewer" if host_type(host) == PROXMOX else "virt-viewer"
+    return viewer.name(proxmox=host_type(host) == PROXMOX)

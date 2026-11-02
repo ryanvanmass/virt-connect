@@ -23,6 +23,25 @@ Proxmox hosts need no extra packages: the API is called with Python's
 standard library, and consoles open in `remote-viewer` (part of
 `virt-viewer`).
 
+### macOS
+
+virt-viewer is poorly maintained on macOS, so on a Mac both kinds of host
+open their consoles in [Saffron](https://github.com/ryanvanmass/Saffron)
+instead. Saffron is a SPICE viewer built on IT Toolbox's SPICE client, and
+it takes the same arguments as virt-viewer and remote-viewer. Install
+Saffron.app from its Releases page plus its Homebrew runtime, and the
+tools virt-connect itself needs:
+
+```
+brew install spice-gtk pygobject3 pyside   # Saffron's runtime
+brew install libvirt pyqt                  # virsh + PyQt6 for virt-connect
+```
+
+virt-connect looks for Saffron in this order: `$VIRT_CONNECT_SAFFRON`,
+`saffron` on `PATH`, `/Applications/Saffron.app`, then
+`~/Applications/Saffron.app`. Every other platform keeps virt-viewer and
+remote-viewer.
+
 ## Run
 
 ```
@@ -49,9 +68,10 @@ python3 main.py
     for a paused or shut-off one (resuming vs. booting under the hood,
     respectively). The dropdown arrow adds **Shutdown** as a secondary
     option (a graceful ACPI shutdown via `virsh shutdown`).
-  - **Connect** — launches `virt-viewer`. The dropdown adds **Connect (X11
+  - **Connect** — launches `virt-viewer` (Saffron on macOS). The dropdown adds **Connect (X11
     legacy mode)**, which runs the same command with `GDK_BACKEND=x11` set —
     useful if `virt-viewer` misbehaves under Wayland on older/legacy systems.
+    On macOS it's a plain button, since X11 mode doesn't apply to Saffron.
 - The list refreshes automatically after any power action so the state and
   button label catch up, in addition to the normal 15s background refresh.
 
@@ -71,7 +91,7 @@ owner-only (`0600`) permissions.
    `PVEVMUser` role covers all three.
 3. For **Connect** to work, set each VM's **Hardware → Display** to
    **SPICE (qxl)**. virt-connect asks Proxmox for a one-time SPICE ticket
-   and opens it in `remote-viewer`, going through Proxmox's SPICE proxy on
+   and opens it in `remote-viewer` (Saffron on macOS), going through Proxmox's SPICE proxy on
    port 3128 of the host you configured.
 
 On Proxmox, VMs are listed across every node in the cluster as
@@ -110,7 +130,7 @@ Run `./install.sh --uninstall` to remove everything it installed.
 ```
 mkdir -p ~/.local/share/virt-connect
 cp -r main.py config.py backends.py virsh_client.py proxmox_client.py \
-    workers.py widgets.py assets \
+    viewer.py workers.py widgets.py assets \
     ~/.local/share/virt-connect/
 
 for size in 16 24 32 48 64 128 256; do
